@@ -1,27 +1,52 @@
 import torch
 import torch.utils.data as data
 from dataset import HWDataset
-from globals import TRANSFORM, DEVICE, TEST_PATH, NB_CLASS, EMBEDDING_DIM, MODEL_PATH, IMG_SIZE
+from globals import TRANSFORM, DEVICE, MODEL_PATH, IMG_SIZE, TEST_PATH, BATCH_SIZE
 from model import create_model
-from loss import LMCL_loss
+
+def get_class(embedding, class_to_embedding):
+    max_sim, best_class = -float("inf"), None
+    for class_name, class_embedding in class_to_embedding.items():
+        similarity = torch.nn.functional.cosine_similarity(embedding, class_embedding, dim=0)
+        if similarity > max_sim:
+            max_sim = similarity
+            best_class = class_name
+    return best_class
+
+# TODO - Create function which will get representative embeddings 
+#        from test dataset and ignore this representative data.
+#        Example of format below.
+# class_to_embedding = {
+#     "0": torch.tensor([1]).to(DEVICE),
+#     "1": torch.tensor([2]).to(DEVICE),
+# }
+def get_representative_embeddings():
+    return  {
+                "0": torch.tensor([1]).to(DEVICE),
+                "1": torch.tensor([2]).to(DEVICE),
+            }
 
 test_dataset = HWDataset(TEST_PATH, transform=TRANSFORM)
-test_loader = data.DataLoader(test_dataset, batch_size=32, shuffle=False)
+test_loader = data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-model = create_model(NB_CLASS, IMG_SIZE)
+model = create_model(num_classes=None, img_size=IMG_SIZE)
 model.load_state_dict(torch.load(MODEL_PATH))
 model.eval()
+
+class_to_embedding = get_representative_embeddings()
+
 correct, total = 0, 0
-
-lmcl_loss = LMCL_loss(num_classes=NB_CLASS, feat_dim=EMBEDDING_DIM)
-
 with torch.no_grad():
     for images, labels in test_loader:
-        images, labels = images.to(DEVICE), labels.to(DEVICE)
+        images = images.to(DEVICE)
         embeddings = model(images)
-        logits, _ = lmcl_loss(embeddings, labels)
-        preds = torch.argmax(logits, dim=1)
-        correct += (preds == labels).sum().item()
-        total += labels.size(0)
-        
+
+        for i in range(len(images)):
+            pred_class = get_class(embeddings[i], class_to_embedding)
+            true_class = labels[i].item()
+
+            if pred_class == true_class:
+                correct += 1
+            total += 1
+
 print(f"Test accuracy: {100 * correct / total:.2f}%")
