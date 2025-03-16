@@ -61,11 +61,7 @@ class AdaFaceLoss(nn.Module):
         return loss
 
     def get_predictions(self, embeddings):
-        """
-        Predict class labels based on embeddings.
-        :param embeddings: Feature embeddings from the model
-        :return: Predicted class labels
-        """
+
         embeddings = F.normalize(embeddings, p=2, dim=1)
         weight_norm = F.normalize(self.weight.to(embeddings.device), p=2, dim=1)
         logits = torch.matmul(embeddings, weight_norm.t())

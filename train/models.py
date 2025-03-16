@@ -49,10 +49,7 @@ class ViT_Model(nn.Module):
 
         # We will add new positional embedings 
         self.vit.pos_embed = nn.Parameter(torch.randn(1, num_patches + 1, embed_dim)) # +1 for cls token
-
-        # Replace the classification head (if needed)
-        if num_classes != 1000:  # Or whatever the original pretrained model had
-            self.vit.head = nn.Linear(embed_dim, num_classes)
+        self.vit.head = nn.Linear(embed_dim, num_classes)
 
     def forward(self, x):
         return self.vit(x)
