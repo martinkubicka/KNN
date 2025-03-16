@@ -27,6 +27,8 @@ criterion_ce = criterion_ce.to(device)
 
 optimizer = optim.Adam(list(model.parameters()) + list(lmcl_loss.parameters()), lr=LR)
 
+print("Training started.")
+
 # TRAINING LOOP
 for epoch in range(EPOCHS):
     model.train()

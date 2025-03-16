@@ -23,6 +23,13 @@
 2. ./test_baseline
 ```
 
+### Disown terminal 
+Disown interactive terminal so you can close it. Output will be redirected to `output.txt`.
+```
+nohup python ./src/architectures/baseline/train.py > output.txt 2>&1 &
+disown
+```
+
 ### TODOs
 - `test.py` - implement function get_representative_embedding()
 - `wandb` support
