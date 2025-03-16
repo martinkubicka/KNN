@@ -26,7 +26,7 @@
 ### Disown terminal 
 Disown interactive terminal so you can close it. Output will be redirected to `output.txt`.
 ```
-nohup python ./src/architectures/baseline/train.py > output.txt 2>&1 &
+nohup python -u ./src/architectures/baseline/train.py > output.txt 2>&1 &
 disown
 ```
 
