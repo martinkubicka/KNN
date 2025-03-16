@@ -1,4 +1,7 @@
+lmdb
 numpy
+opencv_python
+pandas
 Pillow
 timm
 torch

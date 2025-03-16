@@ -1,31 +1,29 @@
 import os
+import cv2
+import lmdb
+import numpy as np
+import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
 
 class HWDataset(Dataset):
-    def __init__(self, dataset_path, transform=None):
-        image_dir = os.path.join(dataset_path, "images")
-        label_dir = os.path.join(dataset_path, "labels")
+    def __init__(self, lmdb_path, csv_path, transform=None):
+        self.data = pd.read_csv(csv_path)
+        self.lmdb_txn = lmdb.open(lmdb_path, readonly=True, lock=False).begin()
         self.transform = transform
-
-        image_files = [f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.png', '.jpeg'))]
-
-        self.data = []
-        for img_file in image_files:
-            img_path = os.path.join(image_dir, img_file)
-            label_path = os.path.join(label_dir, img_file.split(".")[0] + ".txt")
-            self.data.append((img_path, label_path))
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        image = Image.open(self.data[idx][0])
+        image_name, label = self.data.iloc[idx]
+        
+        img = cv2.imdecode(np.frombuffer(self.lmdb_txn.get(image_name.encode()), dtype=np.uint8), 1)
+        image = Image.fromarray(img)
+        
         if self.transform:
             image = self.transform(image)
-        
-        with open(self.data[idx][1], 'r') as f:
-            label_str = f.readline().strip()
-        label = int(label_str)
-        
-        return image, label
+            
+            
+
+        return image, int(label)

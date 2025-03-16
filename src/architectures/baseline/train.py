@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import random_split, DataLoader
 from dataset import HWDataset
-from globals import TRANSFORM, TRAIN_PATH, BATCH_SIZE, EMBEDDING_DIM, NB_CLASS, IMG_SIZE, DEVICE, LR, EPOCHS
+from globals import TRANSFORM, BATCH_SIZE, EMBEDDING_DIM, NB_CLASS, IMG_SIZE, DEVICE, LR, EPOCHS, DATA_MDB_PATH, TRAIN_CSV_PATH
 from loss import LMCL_loss
 from model import create_model
 
 # DATASET
-dataset = HWDataset(TRAIN_PATH, transform=TRANSFORM)
+dataset = HWDataset(DATA_MDB_PATH, TRAIN_CSV_PATH, transform=TRANSFORM)
 train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])

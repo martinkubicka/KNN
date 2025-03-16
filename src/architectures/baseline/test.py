@@ -1,7 +1,7 @@
 import torch
 import torch.utils.data as data
 from dataset import HWDataset
-from globals import TRANSFORM, DEVICE, MODEL_PATH, IMG_SIZE, TEST_PATH, BATCH_SIZE
+from globals import TRANSFORM, DEVICE, MODEL_PATH, IMG_SIZE, BATCH_SIZE, DATA_MDB_PATH, TEST_CSV_PATH
 from model import create_model
 
 def get_class(embedding, class_to_embedding):
@@ -26,7 +26,7 @@ def get_representative_embeddings():
                 "1": torch.tensor([2]).to(DEVICE),
             }
 
-test_dataset = HWDataset(TEST_PATH, transform=TRANSFORM)
+test_dataset = HWDataset(DATA_MDB_PATH, TEST_CSV_PATH,transform=TRANSFORM)
 test_loader = data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 model = create_model(num_classes=None, img_size=IMG_SIZE)
