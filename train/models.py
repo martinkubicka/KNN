@@ -1,6 +1,7 @@
 import torch.nn as nn
 import timm
 import torch
+from transformers import ViTModel
 
 class ViT_Wrapper(nn.Module):
     def __init__(self, vit_model):
@@ -9,8 +10,8 @@ class ViT_Wrapper(nn.Module):
 
     def forward(self, x):
         outputs = self.vit_model(x)
-        pooled_output = outputs.pooler_output
-        return pooled_output
+     #   pooled_output = outputs.pooler_output
+        return outputs
 
 class ViT_Model(nn.Module):
     """
@@ -40,6 +41,12 @@ class ViT_Model(nn.Module):
     def __init__(self, model_name='vit_base_patch32_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224):
         super().__init__()
 
+        print(f"Using model: {model_name}")
+        print(f"Number of classes: {num_classes}")
+        print(f"Pretrained: {pretrained}")
+        print(f"Input width: {input_width}")
+        print(f"Input height: {input_height}")
+
         if input_width % 32 or input_height % 32:
             raise AttributeError("Model sizes must add squeres")
 
@@ -54,6 +61,7 @@ class ViT_Model(nn.Module):
             img_size=(input_height, input_width), 
             patch_size=32,
         )
+        #self.vit = ViTModel.from_pretrained(model_name)
 
         embed_dim = self.vit.embed_dim
 
@@ -62,7 +70,9 @@ class ViT_Model(nn.Module):
         self.vit.head = nn.Linear(embed_dim, num_classes)
 
     def forward(self, x):
-        return self.vit(x)
+        features = self.vit.forward_features(x)
+        cls_token = features[:, 0]
+        return cls_token
     
 
 class CustomModel(nn.Module):
@@ -85,27 +95,27 @@ class CustomModel(nn.Module):
         return x
 
 
-def model_build(config: dict):
-    if config["model"] == "vit":
-        vit_model = ViT_Model(num_classes = config["num_classes"],
+def get_model(config: dict):
+    if config["architecture"]["name"] == "vit":
+        vit_model = ViT_Model(num_classes = config["architecture"]["num_classes"],
                                   input_width = config["input_size"][0],
                                   input_height = config["input_size"][1])
         
-        in_features = vit_model.config.hidden_size
+        in_features = vit_model.vit.embed_dim
         model = ViT_Wrapper(vit_model)
     else:
         raise NotImplementedError(f"Model {config['model']} not implemented")
 
     embedding_layer = nn.Sequential(
-        nn.Linear(in_features, config["embedding_size"]),
+        nn.Linear(in_features, config["embedding"]["dim"]),
         nn.ReLU(),
-        nn.BatchNorm1d(config["embedding_size"]),
-        nn.Dropout(config["dropout"])
+        nn.BatchNorm1d(config["embedding"]["dim"]),
+        nn.Dropout(config["embedding"]["dropout"])
     )
 
     classifier_layer = nn.Sequential(
         nn.Dropout(0.5),
-        nn.Linear(config["embedding_size"], config["num_classes"]),
+        nn.Linear(config["embedding"]["dim"], config["architecture"]["num_classes"]),
         nn.Softmax(dim=1)
     )
 

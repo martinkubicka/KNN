@@ -3,6 +3,8 @@ import lmdb
 import numpy as np
 import pandas as pd
 import cv2
+import PIL.Image as Image
+import io
 
 
 class HandWrittenDataset(Dataset):
@@ -15,18 +17,19 @@ class HandWrittenDataset(Dataset):
         except (FileNotFoundError, pd.errors.ParserError) as e:
             print(f"Error reading CSV file: {e}")
             raise e
+        
+        self.txn = self.database.begin()
 
     def __len__(self):
-        return len(self.indicies)
+        return len(self.indices)
 
     def __getitem__(self, idx):
-        key = self.indicies.iloc[idx, 0]
+        key = self.indices.iloc[idx, 0]
         img_data = self.txn.get(key.encode("utf-8"))
-        img = cv2.imdecode(np.frombuffer(img_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-        
+        img = Image.open(io.BytesIO(img_data))
         img = self.transform(img) if self.transform else img
         
-        label = self.indicies.iloc[idx, 1]
+        label = self.indices.iloc[idx, 1]
         return img, label
 
     def __del__(self):

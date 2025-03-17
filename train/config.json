@@ -1,16 +1,22 @@
 {
-    "data_dir": "data/database",
+    "data_dir": "../data/database/",
     "indicies": {
-        "train": "data/train_ids.csv",
-        "test": "data/test_ids.csv"
+        "train": "../data/train_ids.csv",
+        "val": "../data/val_ids.csv",
+        "test": "../data/test_ids.csv"
     },
 
-    "batch_size": 32,
+    "batch_size": 512,
+    "epochs": 100,
+
     "scheduler": {
         "step_size": 10,
         "gamma": 0.1
     },
+
+    "lr": 0.001,
     "momentum": 0.9,
+    "weight_decay": 0.0001,
 
     "embedding": {
         "dim": 256,
@@ -27,8 +33,9 @@
         "name": "adaface"
     },
 
-    "input_size": [332, 32],
+    "input_size": [384, 32],
     "output": "output",
     "seed": 42,
     "device": "cuda"
+
 }

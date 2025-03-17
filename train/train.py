@@ -1,16 +1,18 @@
-from .models import get_model
-from .dataset import HandWrittenDataset
-from .loss import AdaFaceLoss
+from models import get_model
+from dataset import HandWrittenDataset
+from loss.adaface import AdaFaceLoss
+from torchvision import transforms
 import json
 import argparse
 import torch
 from pathlib import Path
-
+import os
 
 def get_dataloader(config: dict, indices: str):
 
-    transforms = transforms.Compose([
-        transforms.Resize(config["input_size"]),
+    data_transforms = transforms.Compose([
+        transforms.Resize([config["input_size"][1], config["input_size"][0]]),
+        transforms.Grayscale(num_output_channels=3), # Toto tu musi byt lebo by nesedeli pocty kanalov
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
         transforms.RandomAffine(0, shear=10, scale=(0.8, 1.2)),
@@ -21,8 +23,8 @@ def get_dataloader(config: dict, indices: str):
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
-    dataset = HandWrittenDataset(config["database"], indices, transform=transforms)
-    dataloader = torch.utils.data.DataLoader(dataset, indices, shuffle=True) 
+    dataset = HandWrittenDataset(config["data_dir"], indices, transform=data_transforms)
+    dataloader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=config["batch_size"]) 
 
     return dataloader
 
@@ -31,8 +33,8 @@ def get_dataloader(config: dict, indices: str):
  
 def train(config: dict):
     model = get_model(config).to(config["device"])
-    dataloader_training = get_dataloader(config, config["indices"]["train"])
-    dataloader_validation = get_dataloader(config, config["indices"]["val"]) #TODO vylepšiť
+    dataloader_training = get_dataloader(config, config["indicies"]["train"])
+    dataloader_validation = get_dataloader(config, config["indicies"]["val"]) #TODO vylepšiť
 
     optimizer = torch.optim.SGD( # Vyskúšame neskôr aj Adama ale na toto mám celkom dobre odskúšaný SGD
         model.parameters(),
@@ -43,13 +45,13 @@ def train(config: dict):
 
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, 
-        step_size=config["step_size"],
-        gamma=config["gamma"]
+        step_size=config["scheduler"]["step_size"],
+        gamma=config["scheduler"]["gamma"]
     )
 
     criterion = AdaFaceLoss(
-        class_num=config["num_classes"],
-        embedding_size=config["embedding_size"],
+        class_num=config["architecture"]["num_classes"],
+        embedding_size=config["embedding"]["dim"],
         device=config["device"]
     )
 
@@ -122,6 +124,16 @@ def train(config: dict):
         print(f"Validation Loss: {val_loss:.4f} Acc: {val_acc:.4f} LR: {current_lr}")
         print("-" * 10)
         print("-" * 10)
+
+        # Save model last
+        torch.save(model.state_dict(), os.path.join(config["output"], "model_last.pth"))
+        print("Model saved as last")
+
+        if val_loss == min(v_losses):
+            torch.save(model.state_dict(), os.path.join(config["output"], "model_best.pth"))
+            print("Model saved as best")
+
+    print("Training finished")    
     
 
 def main(config: Path):
@@ -135,7 +147,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train a model on the Handwritten Dataset")
-    parser.add_argument("--config", type=str, required=True, help="Path to the configuration file")
+    parser.add_argument("-c", "--config", type=str, required=True, help="Path to the configuration file")
     args = parser.parse_args()
 
     main(Path(args.config))
