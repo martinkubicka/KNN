@@ -2,6 +2,16 @@ import torch.nn as nn
 import timm
 import torch
 
+class ViT_Wrapper(nn.Module):
+    def __init__(self, vit_model):
+        super(ViT_Wrapper, self).__init__()
+        self.vit_model = vit_model
+
+    def forward(self, x):
+        outputs = self.vit_model(x)
+        pooled_output = outputs.pooler_output
+        return pooled_output
+
 class ViT_Model(nn.Module):
     """
     Vision Transformer (ViT) Model.
@@ -54,3 +64,49 @@ class ViT_Model(nn.Module):
     def forward(self, x):
         return self.vit(x)
     
+
+class CustomModel(nn.Module):
+    def __init__(self, features, embedding_layer, classifier_layer):
+        super(CustomModel, self).__init__()
+        self.features = features
+        self.embedding_layer = embedding_layer
+        self.classifier_layer = classifier_layer
+
+    def forward(self, x):
+        x = self.features(x)
+
+        x = self.embedding_layer(x)
+        logits = self.classifier_layer(x)
+        return logits
+    
+    def get_embedding(self, x):
+        x = self.features(x)
+        x = self.embedding_layer(x)
+        return x
+
+
+def model_build(config: dict):
+    if config["model"] == "vit":
+        vit_model = ViT_Model(num_classes = config["num_classes"],
+                                  input_width = config["input_size"][0],
+                                  input_height = config["input_size"][1])
+        
+        in_features = vit_model.config.hidden_size
+        model = ViT_Wrapper(vit_model)
+    else:
+        raise NotImplementedError(f"Model {config['model']} not implemented")
+
+    embedding_layer = nn.Sequential(
+        nn.Linear(in_features, config["embedding_size"]),
+        nn.ReLU(),
+        nn.BatchNorm1d(config["embedding_size"]),
+        nn.Dropout(config["dropout"])
+    )
+
+    classifier_layer = nn.Sequential(
+        nn.Dropout(0.5),
+        nn.Linear(config["embedding_size"], config["num_classes"]),
+        nn.Softmax(dim=1)
+    )
+
+    return CustomModel(model, embedding_layer, classifier_layer)
