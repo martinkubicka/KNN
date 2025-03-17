@@ -140,6 +140,9 @@ def main(config: Path):
     with open(config) as f:
         config = json.load(f)
 
+    if not os.path.exists(config["output"]):
+        os.makedirs(config["output"])
+
     train(config)
 
 
