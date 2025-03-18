@@ -38,7 +38,7 @@ class ViT_Model(nn.Module):
             Returns:
                 torch.Tensor: Output tensor after passing through the model.
     """
-    def __init__(self, model_name='vit_base_patch32_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224):
+    def __init__(self, model_name='vit_base_patch16_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224, patch_size = 16):
         super().__init__()
 
         print(f"Using model: {model_name}")
@@ -47,11 +47,11 @@ class ViT_Model(nn.Module):
         print(f"Input width: {input_width}")
         print(f"Input height: {input_height}")
 
-        if input_width % 32 or input_height % 32:
+        if input_width % patch_size or input_height % patch_size:
             raise AttributeError("Model sizes must add squeres")
 
-        num_patches_h = input_height // 32  
-        num_patches_w = input_width // 32   
+        num_patches_h = input_height // patch_size  
+        num_patches_w = input_width // patch_size   
         num_patches = num_patches_h * num_patches_w 
 
         self.vit = timm.create_model(
@@ -59,7 +59,7 @@ class ViT_Model(nn.Module):
             pretrained=pretrained,
             num_classes=0,  # We'll add our own head later
             img_size=(input_height, input_width), 
-            patch_size=32,
+            patch_size=patch_size,
         )
         #self.vit = ViTModel.from_pretrained(model_name)
 

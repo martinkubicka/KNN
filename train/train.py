@@ -2,6 +2,7 @@ from models import get_model
 from dataset import HandWrittenDataset
 from loss.adaface import AdaFaceLoss
 from torchvision import transforms
+from torch.utils.tensorboard import SummaryWriter
 import json
 import argparse
 import torch
@@ -28,6 +29,15 @@ def get_dataloader(config: dict, indices: str):
 
     return dataloader
 
+def get_basic_info(model, writer, config):
+    writer.add_text("Model", str(model))
+    writer.add_text("Model Parameters", str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
+    writer.add_text("Model Layers", str(len(list(model.parameters()))))
+    writer.add_text("Model Architecture", str(model))
+    writer.add_text("Model Configuration", json.dumps(config, indent=4))
+
+    gpu_info = torch.cuda.get_device_name(config["device"]) if torch.cuda.is_available() else "CPU"
+    writer.add_text("System Info", f"Using device: {gpu_info}")
                           
 
  
@@ -35,6 +45,11 @@ def train(config: dict):
     model = get_model(config).to(config["device"])
     dataloader_training = get_dataloader(config, config["indicies"]["train"])
     dataloader_validation = get_dataloader(config, config["indicies"]["val"]) #TODO vylepšiť
+    writer = SummaryWriter(log_dir=os.path.join(config["output"], config["log_dir"]))
+    get_basic_info(model, writer, config)
+    
+    dummy_input = torch.randn(1, 3, config["input_size"][1], config["input_size"][0]).to(config["device"])
+    writer.add_graph(model, dummy_input)
 
     optimizer = torch.optim.SGD( # Vyskúšame neskôr aj Adama ale na toto mám celkom dobre odskúšaný SGD
         model.parameters(),
@@ -93,6 +108,9 @@ def train(config: dict):
         epoch_acc = t_correct.double() / len(dataloader_training.dataset)
         t_losses.append(epoch_loss)
         t_accs.append(epoch_acc)
+        writer.add_scalar('Loss/Train', epoch_loss, epoch)
+        writer.add_scalar('Accuracy/Train', epoch_acc, epoch)
+
         print(f"Train Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
         scheduler.step()
 
@@ -120,6 +138,10 @@ def train(config: dict):
 
         v_losses.append(val_loss)
         v_accs.append(val_acc)
+        writer.add_scalar('Loss/Validation', val_loss, epoch)
+        writer.add_scalar('Accuracy/Validation', val_acc, epoch)
+        writer.add_scalar('Learning Rate', current_lr, epoch)
+
         current_lr = optimizer.param_groups[0]['lr']
         print(f"Validation Loss: {val_loss:.4f} Acc: {val_acc:.4f} LR: {current_lr}")
         print("-" * 10)
@@ -134,6 +156,7 @@ def train(config: dict):
             print("Model saved as best")
 
     print("Training finished")    
+    writer.close()
     
 
 def main(config: Path):
