@@ -2,12 +2,14 @@ from models import get_model
 from dataset import HandWrittenDataset
 from loss.adaface import AdaFaceLoss
 from torchvision import transforms
+import torchvision
 from torch.utils.tensorboard import SummaryWriter
 import json
 import argparse
 import torch
 from pathlib import Path
 import os
+import sys
 
 def get_dataloader(config: dict, indices: str):
 
@@ -33,11 +35,14 @@ def get_basic_info(model, writer, config):
     writer.add_text("Model", str(model))
     writer.add_text("Model Parameters", str(sum(p.numel() for p in model.parameters() if p.requires_grad)))
     writer.add_text("Model Layers", str(len(list(model.parameters()))))
-    writer.add_text("Model Architecture", str(model))
     writer.add_text("Model Configuration", json.dumps(config, indent=4))
 
     gpu_info = torch.cuda.get_device_name(config["device"]) if torch.cuda.is_available() else "CPU"
     writer.add_text("System Info", f"Using device: {gpu_info}")
+    writer.add_text("System Info", f"PyTorch Version: {torch.__version__}")
+    writer.add_text("System Info", f"Torchvision Version: {torchvision.__version__}")
+    writer.add_text("System Info", f"Python Version: {sys.version}")
+
                           
 
  
@@ -47,7 +52,7 @@ def train(config: dict):
     dataloader_validation = get_dataloader(config, config["indicies"]["val"]) #TODO vylepšiť
     writer = SummaryWriter(log_dir=os.path.join(config["output"], config["log_dir"]))
     get_basic_info(model, writer, config)
-    
+
     dummy_input = torch.randn(1, 3, config["input_size"][1], config["input_size"][0]).to(config["device"])
     writer.add_graph(model, dummy_input)
 
@@ -64,11 +69,14 @@ def train(config: dict):
         gamma=config["scheduler"]["gamma"]
     )
 
-    criterion = AdaFaceLoss(
-        class_num=config["architecture"]["num_classes"],
-        embedding_size=config["embedding"]["dim"],
-        device=config["device"]
-    )
+    if config["loss"].lower() == "adaface":
+        criterion = AdaFaceLoss(  # TODO dynamic loss
+            class_num=config["architecture"]["num_classes"],
+            embedding_size=config["embedding"]["dim"],
+            device=config["device"]
+        )
+    else:
+        raise NotImplementedError(f"Criterion {config['loss']} not implemented")
 
     t_losses = []
     v_losses = []
@@ -132,6 +140,7 @@ def train(config: dict):
 
             v_loss += loss.item() * inputs.size(0)
             v_correct += torch.sum(preds == labels.data)
+
 
         val_loss = v_loss / len(dataloader_validation.dataset)
         val_acc = v_correct.double() / len(dataloader_validation.dataset)
