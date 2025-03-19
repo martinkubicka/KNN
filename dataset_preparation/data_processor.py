@@ -104,9 +104,9 @@ class ImageProcessor:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source_db", type=str, required=True, help="Path to the source database")
-    parser.add_argument("--target_db", type=str, required=True, help="Path to the target database")
-    parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing image IDs.")
+    parser.add_argument("--source_db", type=str, required=True, help="Path to the source image database.")
+    parser.add_argument("--target_db", type=str, required=True, help="Path to the target image database.")
+    parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing ALL image IDs.")
     parser.add_argument("--target_csv", type=str, default='all_ids_split_img.csv', help="File for updated ids.")
     args = parser.parse_args()
     processor = ImageProcessor(args.source_db, args.target_db, args.id_csv, args.target_csv)

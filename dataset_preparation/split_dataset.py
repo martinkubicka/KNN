@@ -68,7 +68,6 @@ def split_dataset(old_ids_csv, test_ids_csv, train_ids_csv, image_db, plot_dir, 
 
 
 def relabel_csv(id_csv):
-    """ Relabeling so the ids are from zero"""
     df = pd.read_csv(id_csv)
     print(f"Number of unique authors: {df['id'].nunique()} in file {id_csv}")
     author_ids = df["id"].unique()
@@ -78,10 +77,10 @@ def relabel_csv(id_csv):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Get a sample image from the database.")
+    parser = argparse.ArgumentParser(description="Splitting a dataset. Specify image db and output dir for sample images.")
     parser.add_argument("--test_id_csv", type=str, required=True, help="Path to the target TEST csv.")
     parser.add_argument("--train_id_csv", type=str, default=None, required=False, help="Path to the TARGET csv.")
-    parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing all image IDs.")
+    parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing ALL image IDs.")
     parser.add_argument('--image_db', type=str, required=True, help='Path to the image database. (if you want sample)')
     parser.add_argument("--output_dir", type=str, default=None, required=False, help="Directory to save the plots.  (if you want sample)")
     args = parser.parse_args()
