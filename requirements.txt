@@ -6,3 +6,6 @@ Pillow
 timm
 torch
 torchvision
+scikit-learn
+matplotlib
+scipy
