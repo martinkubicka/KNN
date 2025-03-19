@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import os
 
 
-def split_dataset(old_ids_csv, test_ids_csv, train_ids_csv, image_db, plot_dir):
+def split_dataset(old_ids_csv, test_ids_csv, train_ids_csv, image_db, plot_dir, test_sample_size=1000):
     df = pd.read_csv(old_ids_csv)
-    if "image_name" not in df.columns or "id" not in df.columns:
+    if "lmdb_key" not in df.columns or "id" not in df.columns:
         raise ValueError("CSV does not contain 'image_name' or 'id' columns.")
 
     # filter out authors with more than median pages
@@ -19,8 +19,8 @@ def split_dataset(old_ids_csv, test_ids_csv, train_ids_csv, image_db, plot_dir):
 
     # sample for illustrative image
     sampled_df = df[df["id"].isin(filtered_authors)].drop_duplicates(subset="id")
-    sampled_df = sampled_df.sample(n=1000, random_state=42)
-    sampled_image_names = sampled_df["image_name"].tolist()
+    sampled_df = sampled_df.sample(n=test_sample_size, random_state=42)
+    sampled_image_names = sampled_df["lmdb_key"].tolist()
 
     sampled_authors = sampled_df["id"].tolist()
 
@@ -30,7 +30,10 @@ def split_dataset(old_ids_csv, test_ids_csv, train_ids_csv, image_db, plot_dir):
     test_df.to_csv(test_ids_csv, index=False)
     train_df.to_csv(train_ids_csv, index=False)
 
-    # open db to make the plot
+    if plot_dir is None or not os.path.exists(image_db):
+        return
+    print("Plotting sample images...")
+
     env = lmdb.open(image_db, readonly=True, lock=False)
     txn = env.begin()
     images = []
@@ -47,9 +50,9 @@ def split_dataset(old_ids_csv, test_ids_csv, train_ids_csv, image_db, plot_dir):
 
     os.makedirs(plot_dir, exist_ok=True)
     num_images = len(images)
-    cols = 25
+    cols = test_sample_size / 10
     rows = num_images // cols + (num_images % cols > 0)
-    fig, axes = plt.subplots(rows, cols, figsize=(50, rows * 3))
+    fig, axes = plt.subplots(rows, cols, figsize=(rows *3 , rows * 3))
     axes = axes.flatten()
     for i, ax in enumerate(axes):
         if i < num_images:
@@ -76,11 +79,11 @@ def relabel_csv(id_csv):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Get a sample image from the database.")
-    parser.add_argument("--test_id_csv", type=str, required=True, help="Path to the image database.")
-    parser.add_argument("--train_id_csv", type=str, required=True, help="Path to the image database.")
-    parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing image IDs.")
-    parser.add_argument('--image_db', type=str, required=True, help='Path to the image database.')
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the plots.")
+    parser.add_argument("--test_id_csv", type=str, required=True, help="Path to the target TEST csv.")
+    parser.add_argument("--train_id_csv", type=str, default=None, required=False, help="Path to the TARGET csv.")
+    parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing all image IDs.")
+    parser.add_argument('--image_db', type=str, required=True, help='Path to the image database. (if you want sample)')
+    parser.add_argument("--output_dir", type=str, default=None, required=False, help="Directory to save the plots.  (if you want sample)")
     args = parser.parse_args()
     split_dataset(args.id_csv, args.test_id_csv, args.train_id_csv, args.image_db, args.output_dir)
     relabel_csv(args.test_id_csv)
