@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 class ImageProcessor:
-    def __init__(self, source_db, target_db, id_csv, target_csv, target_width=512, target_height=48, grayscale=False):
+    def __init__(self, source_db, target_db, id_csv, target_csv, target_width=512, target_height=48, grayscale=False, min_width=125):
         self.source_db = source_db
         self.target_db = target_db
         self.id_csv = id_csv
@@ -18,6 +18,7 @@ class ImageProcessor:
         self.target_height = target_height
         self.grayscale = grayscale
         self.txn_original = None
+        self.min_width = min_width  # minimum width of the split image
 
     def __call__(self):
         print("Processing data...")
@@ -68,7 +69,7 @@ class ImageProcessor:
                     start = i * self.target_width
                     end = min(start + self.target_width, w)
                     split_img = img[:, start:end]
-                    if end - start < self.target_width:
+                    if self.target_width > end - start > self.min_width:
                         pad_width = max(0, self.target_width - (end - start))
                         split_img = np.pad(split_img, ((0, 0), (0, pad_width), (0, 0)), mode='constant',
                                            constant_values=0)
