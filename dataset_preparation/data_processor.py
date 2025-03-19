@@ -103,7 +103,7 @@ class ImageProcessor:
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Resizing and splitting images.")
     parser.add_argument("--source_db", type=str, required=True, help="Path to the source image database.")
     parser.add_argument("--target_db", type=str, required=True, help="Path to the target image database.")
     parser.add_argument("--id_csv", type=str, required=True, help="Path to the CSV file containing ALL image IDs.")
