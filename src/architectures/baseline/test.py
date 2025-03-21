@@ -14,9 +14,11 @@ import random
 
 test_dataset = HWDataset(DATA_MDB_PATH, TEST_CSV_PATH,transform=TRANSFORM)
 
-sample_size = int(0.05 * len(test_dataset))
+sample_size = int(0.5 * len(test_dataset))
 sampled_indices = random.sample(range(len(test_dataset)), sample_size)
 test_dataset = data.Subset(test_dataset, sampled_indices)
+
+print(len(test_dataset))
 
 test_loader = data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
@@ -50,14 +52,14 @@ embeddings_3d = pca.fit_transform(embeddings)
 
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection='3d')
-scatter = ax.scatter(embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2], c=true_labels, cmap='tab10', alpha=0.6)
+scatter = ax.scatter(embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2], c=true_labels, cmap='nipy_spectral', alpha=0.6)
 plt.colorbar(scatter, ax=ax, label='Ground truth')
 plt.title("K-means clusters - ground truth")
 plt.savefig("embedding_clusters_3d_ground_truth.png")
 
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection='3d')
-scatter = ax.scatter(embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2], c=predicted_clusters, cmap='tab10', alpha=0.6)
+scatter = ax.scatter(embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2], c=predicted_clusters, cmap='nipy_spectral', alpha=0.6)
 plt.colorbar(scatter, ax=ax, label='Clusers')
 plt.title("K-means clusters - predicted")
 plt.savefig("embedding_clusters_3d_predicted.png")

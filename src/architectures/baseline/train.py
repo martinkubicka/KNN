@@ -101,6 +101,5 @@ for epoch in range(EPOCHS):
     ax2.set_ylabel("Accuracy (%)")
     plt.legend(loc="upper left")
     ax2.legend(loc="upper right")
-    plot_filename = "training_results.png"
-    plt.savefig(plot_filename)
+    plt.savefig("./training_results.png")
     
