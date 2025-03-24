@@ -1,7 +1,7 @@
 import torch
 import torch.utils.data as data
 from dataset import HWDataset
-from globals import TRANSFORM, DEVICE, MODEL_PATH, IMG_SIZE, BATCH_SIZE, DATA_MDB_PATH, NB_CLASS_TEST, TEST_CSV_PATH
+from globals import TRANSFORM, DEVICE, MODEL_PATH, IMG_SIZE, BATCH_SIZE, DATA_MDB_PATH, NB_CLASS_TEST, TEST_CSV_PATH, NB_CLASS
 from model import create_model
 from sklearn.cluster import KMeans
 from torch.utils.data import DataLoader
@@ -14,15 +14,15 @@ import random
 
 test_dataset = HWDataset(DATA_MDB_PATH, TEST_CSV_PATH,transform=TRANSFORM)
 
-sample_size = int(0.5 * len(test_dataset))
-sampled_indices = random.sample(range(len(test_dataset)), sample_size)
-test_dataset = data.Subset(test_dataset, sampled_indices)
+# sample_size = int(0.5 * len(test_dataset))
+# sampled_indices = random.sample(range(len(test_dataset)), sample_size)
+# test_dataset = data.Subset(test_dataset, sampled_indices)
 
 print(len(test_dataset))
 
 test_loader = data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-model = create_model(nb_cls=4092, img_size=IMG_SIZE)
+model = create_model(nb_cls=NB_CLASS, img_size=IMG_SIZE)
 checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
 pretrained_dict = checkpoint["model_state_dict"]
 model.load_state_dict(pretrained_dict, strict=False)

@@ -2,8 +2,6 @@
 
 import torch
 import torch.nn as nn
-from torch.autograd.function import Function
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 class LMCL_loss(nn.Module):

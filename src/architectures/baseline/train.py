@@ -91,15 +91,13 @@ for epoch in range(EPOCHS):
     
     print(f"Epoch [{epoch+1}/{EPOCHS}], Training Loss: {epoch_loss:.4f}, Validation Loss: {epoch_val_loss:.4f}, Validation Accuracy: {val_acc:.2f}%")
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_losses, label="Train Loss", marker='o', linestyle='-')
-    plt.plot(val_losses, label="Validation Loss", marker='o', linestyle='-')
-    ax2 = plt.gca().twinx()
-    ax2.plot(val_accuracies, label="Validation Accuracy", marker='s', linestyle='--', color='green')
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+    ax1.plot(train_losses, linestyle='-')
+    ax1.plot(val_losses, linestyle='-')
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Loss")
+    ax2 = ax1.twinx()
+    ax2.plot(val_accuracies, linestyle='-', color='green')
     ax2.set_ylabel("Accuracy (%)")
-    plt.legend(loc="upper left")
-    ax2.legend(loc="upper right")
     plt.savefig("./training_results.png")
     

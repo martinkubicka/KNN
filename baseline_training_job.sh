@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N knn_job
-#PBS -l select=1:ncpus=1:mem=64gb:ngpus=1:gpu_mem=16gb:scratch_local=32gb
+#PBS -l select=1:ncpus=1:mem=64gb:ngpus=1:gpu_mem=10gb:scratch_local=64gb
 #PBS -l walltime=100:00:00
 #PBS -q gpu_long
 
