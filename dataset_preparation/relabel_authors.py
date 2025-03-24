@@ -10,7 +10,6 @@ class RebelAuthors:
         self.linecounter = {}
 
     def __call__(self):
-        """Processes input data and stores results."""
         print("Processing data...")
         self.relabel_authors()
         self.print_stats()
@@ -56,8 +55,8 @@ class RebelAuthors:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--infile", type=str, required=True, help="Input file with author IDs.")
+    parser = argparse.ArgumentParser(description="Creating new author IDs csv from the format provided by school.")
+    parser.add_argument("--infile", type=str, required=True, help="Input file with author IDs. In format provided by the school.")
     parser.add_argument("--outfile", type=str, required=True, help="Output file with relabeled author IDs.")
     args = parser.parse_args()
     processor = RebelAuthors(args.infile, args.outfile)
