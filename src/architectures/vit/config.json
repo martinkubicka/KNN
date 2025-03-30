@@ -1,9 +1,9 @@
 {
-    "data_dir": "../data/database/",
+    "data_dir": "../../../data/database/",
     "indicies": {
-        "train": "../data/train_ids.csv",
-        "val": "../data/val_ids.csv",
-        "test": "../data/test_ids.csv"
+        "train": "../../../data/train_ids.csv",
+        "val": "../../../data/val_ids.csv",
+        "test": "../../../data/test_ids.csv"
     },
 
     "batch_size": 32,

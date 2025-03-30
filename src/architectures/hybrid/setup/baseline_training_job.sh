@@ -8,4 +8,4 @@ DATADIR=/storage/brno2/home/xkubic45/KNN
 cd $DATADIR || { echo "Failed to change directory to $DATADIR" >&2; exit 2; }
 chmod +x setup.sh test_baseline.sh train_baseline.sh || { echo "Failed to change permissions" >&2; exit 3; }
 ./setup.sh || { echo "setup.sh failed" >&2; exit 4; }
-python -u ./src/architectures/baseline/train.py > output.txt 2>&1
+python -u src/architectures/hybrid/train.py > output.txt 2>&1

@@ -1,6 +1,7 @@
 # KNN Project
 
-### Setup
+## Hybrid model
+### Setup 
 ```
 1. ssh xlogin00@perian.grid.cesnet.cz
 2. Copy/clone whole project to metacentrum (for example: scp -r * xlogin00@perian.grid.cesnet.cz:~/KNN/)
@@ -28,6 +29,3 @@
 ! Change DATADIR path inside the script !
 qsub baseline_training_job.sh
 ```
-
-### TODOs
-- `wandb` support
