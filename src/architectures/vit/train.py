@@ -54,7 +54,7 @@ def train(config: dict):
     get_basic_info(model, writer, config)
 
     dummy_input = torch.randn(1, 3, config["input_size"][1], config["input_size"][0]).to(config["device"])
-  #  writer.add_graph(model, dummy_input)
+    writer.add_graph(model, dummy_input)
 
     optimizer = torch.optim.SGD( # Vyskúšame neskôr aj Adama ale na toto mám celkom dobre odskúšaný SGD
         model.parameters(),

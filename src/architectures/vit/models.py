@@ -2,7 +2,7 @@ import torch.nn as nn
 import timm
 import torch
 from transformers import ViTModel
-import torchvision
+import torch.nn.functional as F
 
 class ViT_Wrapper(nn.Module):
     def __init__(self, vit_model):
@@ -39,7 +39,7 @@ class ViT_Model(nn.Module):
             Returns:
                 torch.Tensor: Output tensor after passing through the model.
     """
-    def __init__(self, model_name='vit_base_patch16_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224, patch_size = 8):
+    def __init__(self, model_name='vit_base_patch16_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224, patch_size = 16):
         super().__init__()
 
         print(f"Using model: {model_name}")
@@ -66,7 +66,7 @@ class ViT_Model(nn.Module):
 
         embed_dim = self.vit.embed_dim
 
-        # We will add new positional embedinSgs 
+        # We will add new positional embedings 
         self.vit.pos_embed = nn.Parameter(torch.randn(1, num_patches + 1, embed_dim)) # +1 for cls token
         self.vit.head = nn.Linear(embed_dim, num_classes)
 
@@ -74,35 +74,26 @@ class ViT_Model(nn.Module):
         features = self.vit.forward_features(x)
         cls_token = features[:, 0]
         return cls_token
-    
-class MobileNetV2_Model(nn.Module):
-    def __init__(self, shape, num_classes=1000, pretrained=True):
-        super(MobileNetV2_Model, self).__init__()
-        self.model = timm.create_model(
-            'mobilenetv2_100',
-            pretrained=pretrained,
-            num_classes=num_classes,
-        )
 
-        self.model.conv_stem = nn.Conv2d(
-            in_channels=3,  
-            out_channels=self.model.conv_stem.out_channels,
-            kernel_size=self.model.conv_stem.kernel_size,
-            stride=self.model.conv_stem.stride,
-            padding=self.model.conv_stem.padding,
-            bias=False
+
+class ConvNext(nn.Module):
+    def __init__(self, pretrained=False, num_classes=1000):
+        super(ConvNext, self).__init__()
+        self.convnext = timm.create_model(
+            'convnext_base',
+            pretrained=pretrained,
+            num_classes=num_classes # or any dummy
         )
+        # Replace the final classification head with Identity
+        self.convnext.head = nn.Identity()
 
     def forward(self, x):
-        return self.model(x)
-    
-    def get_embedding(self, x):
-        x = self.model.features(x)
-        x = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
-        x = torch.flatten(x, 1)
+        x = self.convnext(x)
+        print(x.shape)# shape is (B, 1024, H, W) after removing the head
+        x = F.adaptive_avg_pool2d(x, 1)  # shape is now (B, 1024, 1, 1)
+        x = x.view(x.size(0), -1)     # shape is now (B, 1024)
         return x
 
- 
 class CustomModel(nn.Module):
     def __init__(self, features, embedding_layer, classifier_layer):
         super(CustomModel, self).__init__()
@@ -116,12 +107,11 @@ class CustomModel(nn.Module):
         x = self.embedding_layer(x)
         logits = self.classifier_layer(x)
         return logits
-    
+
     def get_embedding(self, x):
         x = self.features(x)
         x = self.embedding_layer(x)
         return x
-
 
 
 def get_model(config: dict):
@@ -132,9 +122,12 @@ def get_model(config: dict):
         
         in_features = vit_model.vit.embed_dim
         model = ViT_Wrapper(vit_model)
-    elif config["architecture"]["name"] == "mobilenetv2":
-        model = MobileNetV2_Model(shape=config["input_size"] ,num_classes=config["architecture"]["num_classes"])
-        in_features = model.model.classifier.in_features
+
+    elif config["architecture"]["name"] == "convnext":
+        model = ConvNext(num_classes=config["architecture"]["num_classes"], pretrained=config["architecture"]["pretrained"])
+        in_features = model.convnext.num_features
+        print("Features: ", in_features)
+
     else:
         raise NotImplementedError(f"Model {config['model']} not implemented")
 
