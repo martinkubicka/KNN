@@ -6,7 +6,7 @@
         "test": "../../../data/test_ids.csv"
     },
 
-    "batch_size": 32,
+    "batch_size": 1,
     "epochs": 100,
 
     "scheduler": {

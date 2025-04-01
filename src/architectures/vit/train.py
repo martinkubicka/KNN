@@ -10,15 +10,15 @@ import torch
 from pathlib import Path
 import os
 import sys
+import cv2
+import numpy as np
+
 
 def get_dataloader(config: dict, indices: str):
 
     data_transforms = transforms.Compose([
         transforms.Resize([config["input_size"][1], config["input_size"][0]]),
         transforms.Grayscale(num_output_channels=3), # Toto tu musi byt lebo by nesedeli pocty kanalov
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.RandomAffine(0, shear=10, scale=(0.8, 1.2)),
         transforms.ColorJitter(brightness=0.2,
                                 contrast=0.2,
                                 saturation=0.2),
@@ -54,7 +54,7 @@ def train(config: dict):
     get_basic_info(model, writer, config)
 
     dummy_input = torch.randn(1, 3, config["input_size"][1], config["input_size"][0]).to(config["device"])
-    writer.add_graph(model, dummy_input)
+  #  writer.add_graph(model, dummy_input)
 
     optimizer = torch.optim.SGD( # Vyskúšame neskôr aj Adama ale na toto mám celkom dobre odskúšaný SGD
         model.parameters(),
@@ -69,7 +69,7 @@ def train(config: dict):
         gamma=config["scheduler"]["gamma"]
     )
 
-    if config["loss"].lower() == "adaface":
+    if config["loss"]["name"].lower() == "adaface":
         criterion = AdaFaceLoss(  # TODO dynamic loss
             class_num=config["architecture"]["num_classes"],
             embedding_size=config["embedding"]["dim"],
@@ -94,7 +94,7 @@ def train(config: dict):
         for i, (inputs, labels) in enumerate(dataloader_training):
             inputs = inputs.to(config["device"])
             labels = labels.to(config["device"])
-
+            
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(True):
@@ -145,13 +145,15 @@ def train(config: dict):
         val_loss = v_loss / len(dataloader_validation.dataset)
         val_acc = v_correct.double() / len(dataloader_validation.dataset)
 
+
+        current_lr = optimizer.param_groups[0]['lr']
         v_losses.append(val_loss)
         v_accs.append(val_acc)
         writer.add_scalar('Loss/Validation', val_loss, epoch)
         writer.add_scalar('Accuracy/Validation', val_acc, epoch)
         writer.add_scalar('Learning Rate', current_lr, epoch)
 
-        current_lr = optimizer.param_groups[0]['lr']
+        
         print(f"Validation Loss: {val_loss:.4f} Acc: {val_acc:.4f} LR: {current_lr}")
         print("-" * 10)
         print("-" * 10)
@@ -167,6 +169,15 @@ def train(config: dict):
     print("Training finished")    
     writer.close()
     
+def set_deterministic(config: dict):
+    torch.manual_seed(config["seed"])
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(config["seed"])
+    os.environ['PYTHONHASHSEED'] = str(config["seed"])
+    torch.cuda.manual_seed(config["seed"])
+    torch.cuda.manual_seed_all(config["seed"])
+    torch.use_deterministic_algorithms(True)
 
 def main(config: Path):
     with open(config) as f:
@@ -175,8 +186,8 @@ def main(config: Path):
     if not os.path.exists(config["output"]):
         os.makedirs(config["output"])
 
+    set_deterministic(config)
     train(config)
-
 
 if __name__ == "__main__":
     import argparse
