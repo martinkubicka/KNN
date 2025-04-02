@@ -18,12 +18,15 @@ def get_dataloader(config: dict, indices: str):
 
     data_transforms = transforms.Compose([
         transforms.Resize([config["input_size"][1], config["input_size"][0]]),
-        transforms.Grayscale(num_output_channels=3), # Toto tu musi byt lebo by nesedeli pocty kanalov
-        transforms.ColorJitter(brightness=0.2,
-                                contrast=0.2,
-                                saturation=0.2),
+        # #transforms.Grayscale(num_output_channels=3), # Toto tu musi byt lebo by nesedeli pocty kanalov
+        # """
+        # transforms.ColorJitter(brightness=0.2,
+        #                         contrast=0.2,
+        #                         saturation=0.2),
+        # """
+
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.229, 0.224, 0.225])
     ])
 
     dataset = HandWrittenDataset(config["data_dir"], indices, transform=data_transforms)
@@ -102,6 +105,7 @@ def train(config: dict):
                 if isinstance(criterion, AdaFaceLoss): # AdaFaceLoss berie embedding
                     embeddings = model.get_embedding(inputs)
                     loss = criterion(embeddings, labels)
+                    print(loss)
                     preds = criterion.get_predictions(embeddings)
                 else:
                     raise NotImplementedError(f"Criterion {criterion} not implemented") # Ak by sme chceli pridať iný loss napr CrossEntropyLoss
@@ -111,6 +115,7 @@ def train(config: dict):
             
             t_loss += loss.item() * inputs.size(0)
             t_correct += torch.sum(preds == labels.data)
+            print(f"loss: {loss.item():.4f} | batch: {i+1}/{len(dataloader_training)}", end="\r")
 
         epoch_loss = t_loss / len(dataloader_training.dataset)
         epoch_acc = t_correct.double() / len(dataloader_training.dataset)
