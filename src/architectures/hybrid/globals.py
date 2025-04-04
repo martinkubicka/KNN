@@ -6,7 +6,7 @@ DATASET_PATH = "./dataset/"
 DATA_MDB_PATH = os.path.join(DATASET_PATH, "lmdb_processed/")
 TRAIN_CSV_PATH = os.path.join(DATASET_PATH, "train_ids.csv")
 TEST_CSV_PATH = os.path.join(DATASET_PATH, "test_ids.csv")
-MODEL_PATH = "./model-baseline.pth"
+MODEL_PATH = "./model-baseline-best-2nd.pth"
 
 BATCH_SIZE = 256
 HEIGHT = 48

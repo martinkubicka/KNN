@@ -20,8 +20,6 @@ Epoch [18/10000], Training Loss: 5.7305, Validation Loss: 5.8025, Validation Acc
 Epoch [19/10000], Training Loss: 5.6595, Validation Loss: 5.7161, Validation Accuracy: 56.99%
 Epoch [20/10000], Training Loss: 5.5893, Validation Loss: 5.7003, Validation Accuracy: 57.45%
 Epoch [21/10000], Training Loss: 5.5227, Validation Loss: 5.6091, Validation Accuracy: 58.89%
-/auto/brno2/home/xkubic45/KNN/./src/architectures/baseline/train.py:94: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
-  plt.figure(figsize=(10, 5))
 Epoch [22/10000], Training Loss: 5.4596, Validation Loss: 5.5298, Validation Accuracy: 59.57%
 Epoch [23/10000], Training Loss: 5.3976, Validation Loss: 5.5143, Validation Accuracy: 59.31%
 Epoch [24/10000], Training Loss: 5.3371, Validation Loss: 5.4266, Validation Accuracy: 61.08%
@@ -515,4 +513,3 @@ Epoch [511/10000], Training Loss: 3.2838, Validation Loss: 3.4679, Validation Ac
 Epoch [512/10000], Training Loss: 3.2843, Validation Loss: 3.4654, Validation Accuracy: 89.52%
 Epoch [513/10000], Training Loss: 3.2832, Validation Loss: 3.4576, Validation Accuracy: 89.64%
 
-Trained: 64:05 hours.
