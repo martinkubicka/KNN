@@ -94,6 +94,24 @@ class ConvNext(nn.Module):
         x = x.view(x.size(0), -1)     # shape is now (B, 1024)
         return x
 
+class MobileNet(nn.Module):
+    def __init__(self, pretrained=False, num_classes=1000):
+        super(MobileNet, self).__init__()
+        self.mobilenet = timm.create_model(
+            'mobilenetv3_large_100',  # You can choose other MobileNet variants
+            pretrained=pretrained,
+            num_classes=num_classes # or any dummy
+        )
+        # Replace the final classification head with Identity
+        self.mobilenet.classifier = nn.Identity()
+
+    def forward(self, x):
+        x = self.mobilenet.forward_features(x) # Use forward_features for feature extraction
+        print(x.shape) # Shape will depend on the MobileNet variant (e.g., B, 960, H/32, W/32 for mobilenetv3_large_100)
+        x = F.adaptive_avg_pool2d(x, 1)  # shape is now (B, C, 1, 1) where C is the number of channels
+        x = x.view(x.size(0), -1)     # shape is now (B, C)
+        return x
+
 class CustomModel(nn.Module):
     def __init__(self, features, embedding_layer, classifier_layer):
         super(CustomModel, self).__init__()
@@ -126,6 +144,11 @@ def get_model(config: dict):
     elif config["architecture"]["name"] == "convnext":
         model = ConvNext(num_classes=config["architecture"]["num_classes"], pretrained=config["architecture"]["pretrained"])
         in_features = model.convnext.num_features
+        print("Features: ", in_features)
+
+    elif config["architecture"]["name"] == "mobilenet":
+        model = MobileNet(num_classes=config["architecture"]["num_classes"], pretrained=config["architecture"]["pretrained"])
+        in_features = model.mobilenet.num_features
         print("Features: ", in_features)
 
     else:
