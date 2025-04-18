@@ -133,7 +133,6 @@ class CustomModel(nn.Module):
 
 def get_model(config: dict):
     if config["architecture"]["name"] == "vit":
-        print("Using ViT model")
         vit_model = ViT_Model(num_classes = config["architecture"]["num_classes"],
                                   input_width = config["input_size"][0],
                                   input_height = config["input_size"][1],

@@ -60,29 +60,6 @@ class AdaFaceLoss(nn.Module):
 
         return loss
 
-    def get_logits(self, embeddings, labels=None):
-        """
-        Return classification logits. If `labels` is provided,
-        applies the difficulty-adaptive margin to the matching logit.
-        Otherwise, returns the raw scaled logits (no margin).
-        """
-        embeddings = F.normalize(embeddings, p=2, dim=1)
-        weight_norm = F.normalize(self.weight.to(embeddings.device), p=2, dim=1)
-
-        logits = torch.matmul(embeddings, weight_norm.t())
-        logits = torch.clamp(logits, -1.0 + 1e-7, 1.0 - 1e-7)
-
-        if labels is not None:
-            with torch.no_grad():
-                diff = 1.0 - logits
-                adaptive_margin = self.m + self.h * diff
-            target_logits = logits[torch.arange(logits.size(0)), labels]
-            modified_target_logits = target_logits - adaptive_margin[torch.arange(logits.size(0)), labels]
-            logits[torch.arange(logits.size(0)), labels] = modified_target_logits
-
-        logits *= self.s
-        return logits
-
     def get_predictions(self, embeddings):
 
         embeddings = F.normalize(embeddings, p=2, dim=1)
