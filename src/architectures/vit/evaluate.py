@@ -9,8 +9,15 @@ import numpy
 from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+from collections import defaultdict
+import random
+from sklearn.metrics.pairwise import cosine_similarity
 
 NUM_PAIRS = 3000
+CMC_GALLERY_SIZES = [10, 50, 100, 500]
+CMC_MAX_RANK = 5
+RNG_SEED = 42
 
 
 def get_data_loader(config):
@@ -39,41 +46,26 @@ def get_embeddings(model, dataloader, opt):
             embeddings.append(embedding)
             labels.append(label)
 
-    embeddings = torch.cat(embeddings)
-    labels = torch.cat(labels)
+    embeddings = torch.cat(embeddings).cpu()
+    labels = torch.cat(labels).cpu()
 
     return embeddings, labels
 
-def create_pos_pairs(embeddings, labels):
-    pos_pairs = []
-   
-    print("Creating positive pairs")
-    while len(pos_pairs) < NUM_PAIRS:
-        label_id = numpy.random.choice(labels, 1, replace=False)
-        label_idx = numpy.where(labels == label_id)[0]
-        
-        if len(label_idx) < 2:
+
+def _pairs_from_embeddings(embeddings, labels, positive=True):
+    """Utility for creating pos/neg pairs without duplicates."""
+    pairs = []
+    tgt_len = NUM_PAIRS
+    while len(pairs) < tgt_len:
+        idx1, idx2 = np.random.choice(len(labels), 2, replace=False)
+        cond = labels[idx1] == labels[idx2] if positive else labels[idx1] != labels[idx2]
+        if not cond:
             continue
-
-        idx1, idx2 = numpy.random.choice(label_idx, 2, replace=False)
         pair = (tuple(embeddings[idx1].tolist()), tuple(embeddings[idx2].tolist()))
-        if pair not in pos_pairs:
-            pos_pairs.append(pair)
+        if pair not in pairs:  # eliminate accidental duplicates
+            pairs.append(pair)
+    return pairs
 
-    return pos_pairs
-
-def create_neg_pairs(embeddings, labels):
-    neg_pairs = []
-
-    print("Creating negative pairs")
-    while len(neg_pairs) < NUM_PAIRS:
-        idx1, idx2 = numpy.random.choice(len(labels), 2, replace=False)
-        if labels[idx1] != labels[idx2]:
-            pair = (tuple(embeddings[idx1].tolist()), tuple(embeddings[idx2].tolist()))
-            if pair not in neg_pairs:
-                neg_pairs.append(pair)
-
-    return neg_pairs   
 
 def create_roc_curve(pos_pairs, neg_pairs):
     y_true = [1] * len(pos_pairs) + [0] * len(neg_pairs)
@@ -99,7 +91,7 @@ def create_roc_curve(pos_pairs, neg_pairs):
     plt.legend(loc="lower right")
     plt.savefig("roc_curve.png")
 
-def create_geniune_impostor_score(pos_pairs, neg_pairs):
+def create_genuine_impostor_score(pos_pairs, neg_pairs):
     genuine_scores = []
     imposter_scores = []
 
@@ -126,6 +118,77 @@ def create_geniune_impostor_score(pos_pairs, neg_pairs):
     plt.legend(loc="upper right")
     plt.savefig("geniune_impostor_score.png")
 
+
+def evaluate_closed_set_rank_k(embeddings,
+                               labels,
+                               gallery_sizes=CMC_GALLERY_SIZES,
+                               max_rank=CMC_MAX_RANK):
+    labels = np.array(labels)
+    embeds = np.array(embeddings)  # shape [n, d]
+
+    identity_to_indices = defaultdict(list)
+    for idx, lab in enumerate(labels):
+        identity_to_indices[lab].append(idx)
+
+    results = {}
+    for N in gallery_sizes:
+        correct_at_rank = np.zeros(max_rank, dtype=np.int32)
+
+        for probe_idx in range(len(embeds)):
+            probe_label = labels[probe_idx]
+            probe_emb = embeds[probe_idx]
+
+            impostor_ids = random.sample(
+                [i for i in identity_to_indices.keys() if i != probe_label],
+                k=N - 1)
+
+            gallery_indices = []
+
+            same_author_choices = [i for i in identity_to_indices[probe_label]
+                                   if i != probe_idx]
+            ref_idx = random.choice(same_author_choices)
+            gallery_indices.append(ref_idx)
+
+            for imp_id in impostor_ids:
+                gallery_indices.append(random.choice(identity_to_indices[imp_id]))
+
+            sims = cosine_similarity(probe_emb.reshape(1, -1),
+                                     embeds[gallery_indices])[0]
+
+            sorted_idx = np.argsort(sims)[::-1]
+            sorted_labels = labels[gallery_indices][sorted_idx]
+
+            for r in range(1, max_rank + 1):
+                if probe_label in sorted_labels[:r]:
+                    correct_at_rank[r - 1] += 1
+
+        rank_acc = correct_at_rank / len(embeds)  # per‑rank accuracy
+        results[N] = rank_acc.tolist()
+    return results
+
+
+def plot_cmc(results, out_path="cmc_curve.png"):
+    """
+    Draws a CMC curve family: one line per gallery size.
+    """
+    plt.figure()
+    for N, accs in results.items():
+        plt.plot(range(1, len(accs) + 1),
+                 accs, marker="o", label=f"|G|={N}")
+
+    plt.xticks(range(1, len(next(iter(results.values()))) + 1))
+    plt.xlabel("Rank‑k")
+    plt.ylabel("Identification accuracy")
+    plt.title("Closed‑set CMC")
+    plt.ylim(0, 1.02)
+    plt.grid(alpha=.3)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_path)
+    plt.close()
+    print(f"[✓] CMC plot saved to {out_path}")
+
+
 def eval(config, opt):
     model = get_model(config)
     model.load_state_dict(torch.load(opt.weights))
@@ -138,11 +201,25 @@ def eval(config, opt):
     print("Loading embedings")
     embeddings, labels = get_embeddings(model, dataloader, opt)
 
-    pos_pairs = create_pos_pairs(embeddings, labels)
-    neg_pairs = create_neg_pairs(embeddings, labels)
+    pos_pairs = _pairs_from_embeddings(embeddings, labels, positive=True)
+    neg_pairs = _pairs_from_embeddings(embeddings, labels, positive=False)
 
     create_roc_curve(pos_pairs, neg_pairs)
-    create_geniune_impostor_score(pos_pairs, neg_pairs)
+    create_genuine_impostor_score(pos_pairs, neg_pairs)
+
+    rank_results = evaluate_closed_set_rank_k(
+        embeddings,
+        labels,
+        gallery_sizes=CMC_GALLERY_SIZES,
+        max_rank=5
+    )
+
+    for N, accs in rank_results.items():
+        print(f"Gallery size = {N}")
+        for r, val in enumerate(accs, start=1):
+            print(f"  Rank-{r} accuracy = {val:.4f}")
+    plot_cmc(rank_results)
+
 
 def set_deterministic(config):
     torch.manual_seed(config["seed"])
