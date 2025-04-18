@@ -11,7 +11,6 @@ class ViT_Wrapper(nn.Module):
 
     def forward(self, x):
         outputs = self.vit_model(x)
-     #   pooled_output = outputs.pooler_output
         return outputs
 
 class ViT_Model(nn.Module):
@@ -39,9 +38,9 @@ class ViT_Model(nn.Module):
             Returns:
                 torch.Tensor: Output tensor after passing through the model.
     """
-    def __init__(self, model_name='vit_base_patch16_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224, patch_size = 16):
+    def __init__(self, model_name='vit_base_patch16_224', num_classes=1000, pretrained=True, input_width = 224, input_height = 224, patch_size = 8):
         super().__init__()
-
+        print("Patch size: ", patch_size)
         print(f"Using model: {model_name}")
         print(f"Number of classes: {num_classes}")
         print(f"Pretrained: {pretrained}")
@@ -58,7 +57,7 @@ class ViT_Model(nn.Module):
         self.vit = timm.create_model(
             model_name,
             pretrained=pretrained,
-            num_classes=0,  # We'll add our own head later
+            num_classes=0, 
             img_size=(input_height, input_width), 
             patch_size=patch_size,
         )
@@ -134,9 +133,12 @@ class CustomModel(nn.Module):
 
 def get_model(config: dict):
     if config["architecture"]["name"] == "vit":
+        print("Using ViT model")
         vit_model = ViT_Model(num_classes = config["architecture"]["num_classes"],
                                   input_width = config["input_size"][0],
-                                  input_height = config["input_size"][1])
+                                  input_height = config["input_size"][1],
+                                  patch_size = config["architecture"]["patch_size"]
+                                    )
         
         in_features = vit_model.vit.embed_dim
         model = ViT_Wrapper(vit_model)
