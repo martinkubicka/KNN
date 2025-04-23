@@ -1,6 +1,8 @@
 from models import get_model
 from dataset import HandWrittenDataset
 from loss.adaface import AdaFaceLoss
+from loss.arcface import ArcFaceLoss
+from loss.cosface import CosFaceLoss
 from torchvision import transforms
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
@@ -54,7 +56,7 @@ def train(config: dict):
     get_basic_info(model, writer, config)
 
     dummy_input = torch.randn(1, 3, config["input_size"][1], config["input_size"][0]).to(config["device"])
-    # writer.add_graph(model, dummy_input)
+    writer.add_graph(model, dummy_input)
 
     optimizer = torch.optim.SGD( # Vyskúšame neskôr aj Adama ale na toto mám celkom dobre odskúšaný SGD
         model.parameters(),
@@ -73,6 +75,18 @@ def train(config: dict):
         criterion = AdaFaceLoss(  # TODO dynamic loss
             class_num=config["architecture"]["num_classes"],
             embedding_size=config["embedding"]["dim"],
+            device=config["device"]
+        )
+    elif config["loss"]["name"].lower() == "arcface":
+        criterion = ArcFaceLoss(
+            embedding_size=config["embedding"]["dim"],
+            class_num=config["architecture"]["num_classes"],
+            device=config["device"]
+        )
+    elif config["loss"]["name"].lower() == "cosface":
+        criterion = CosFaceLoss(
+            embedding_size=config["embedding"]["dim"],
+            class_num=config["architecture"]["num_classes"],
             device=config["device"]
         )
     else:
@@ -99,7 +113,7 @@ def train(config: dict):
 
             with torch.set_grad_enabled(True):
                 
-                if isinstance(criterion, AdaFaceLoss): # AdaFaceLoss berie embedding
+                if isinstance(criterion, AdaFaceLoss) or isinstance(criterion, ArcFaceLoss) or isinstance(criterion, CosFaceLoss): # AdaFaceLoss berie embedding
                     embeddings = model.get_embedding(inputs)
                     loss = criterion(embeddings, labels)
                     preds = criterion.get_predictions(embeddings)
@@ -131,7 +145,7 @@ def train(config: dict):
             labels = labels.to(config["device"])
 
             with torch.no_grad():
-                if isinstance(criterion, AdaFaceLoss):
+                if isinstance(criterion, AdaFaceLoss) or isinstance(criterion, ArcFaceLoss) or isinstance(criterion, CosFaceLoss):
                     embeddings = model.get_embedding(inputs)
                     loss = criterion(embeddings, labels)
                     preds = criterion.get_predictions(embeddings)
