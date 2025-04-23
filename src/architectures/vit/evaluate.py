@@ -214,10 +214,12 @@ def eval(config, opt):
         max_rank=5
     )
 
-    for N, accs in rank_results.items():
-        print(f"Gallery size = {N}")
-        for r, val in enumerate(accs, start=1):
-            print(f"  Rank-{r} accuracy = {val:.4f}")
+    with open("rank_results.txt", "w") as f:
+        for N, accs in rank_results.items():
+            print(f"Gallery size = {N}", file=f)
+            for r, val in enumerate(accs, start=1):
+                print(f"  Rank-{r} accuracy = {val:.4f}", file=f)
+
     plot_cmc(rank_results)
 
 
