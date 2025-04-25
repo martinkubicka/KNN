@@ -58,15 +58,34 @@ def train(config: dict):
     dummy_input = torch.randn(1, 3, config["input_size"][1], config["input_size"][0]).to(config["device"])
     writer.add_graph(model, dummy_input)
 
-    optimizer = torch.optim.SGD( # Vyskúšame neskôr aj Adama ale na toto mám celkom dobre odskúšaný SGD
-        model.parameters(),
-        lr=config["lr"],
-        momentum=config["momentum"],
-        weight_decay=config["weight_decay"]
-    )
+    try:
+        if config["optimizer"]["name"].lower() == "sgd":
+            optimizer = torch.optim.SGD(
+                model.parameters(),
+                lr=config["optimizer"]["lr"],
+                momentum=config["optimizer"]["momentum"],
+                weight_decay=config["optimizer"]["weight_decay"]
+            )
+
+        if config["optimizer"]["name"].lower() == "adam":
+            optimizer = torch.optim.Adam(
+                model.parameters(),
+                lr=config["optimizer"].get("lr", 0.001),
+                betas=config["optimizer"].get("betas", (0.9, 0.999)),
+                weight_decay=config["optimizer"].get("weight_decay", 0),
+                eps=config["optimizer"].get("eps", 1e-8)
+            )
+
+    except KeyError:
+        optimizer = torch.optim.SGD(  # default optimizer at to funguje i na stare configy
+            model.parameters(),
+            lr=config["lr"],
+            momentum=config["momentum"],
+            weight_decay=config["weight_decay"]
+        )
 
     scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, 
+        optimizer,
         step_size=config["scheduler"]["step_size"],
         gamma=config["scheduler"]["gamma"]
     )
