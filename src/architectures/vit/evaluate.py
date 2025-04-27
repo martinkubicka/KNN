@@ -90,6 +90,7 @@ def create_roc_curve(pos_pairs, neg_pairs):
     plt.title("Receiver Operating Characteristic")
     plt.legend(loc="lower right")
     plt.savefig("roc_curve.png")
+    plt.close()
 
 def create_genuine_impostor_score(pos_pairs, neg_pairs):
     genuine_scores = []
@@ -107,6 +108,7 @@ def create_genuine_impostor_score(pos_pairs, neg_pairs):
         similarity = torch.nn.functional.cosine_similarity(tensor1.unsqueeze(0), tensor2.unsqueeze(0))
         imposter_scores.append(similarity.item())
 
+    plt.figure()
     sns.kdeplot(genuine_scores, color="blue", fill=True)
     sns.kdeplot(imposter_scores, color="red", fill=True)
 
@@ -117,7 +119,7 @@ def create_genuine_impostor_score(pos_pairs, neg_pairs):
     plt.hist(imposter_scores, bins=80, alpha=0.5, label="Imposter", color="red", density=True)
     plt.legend(loc="upper right")
     plt.savefig("geniune_impostor_score.png")
-
+    plt.close()
 
 def evaluate_closed_set_rank_k(embeddings,
                                labels,
@@ -191,7 +193,7 @@ def plot_cmc(results, out_path="cmc_curve.png"):
 
 def eval(config, opt):
     model = get_model(config)
-    model.load_state_dict(torch.load(opt.weights))
+    model.load_state_dict(torch.load(opt.weights, weights_only=False))
     model.to(opt.device)
     model.eval()
     print("Model loaded")
