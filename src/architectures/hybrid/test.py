@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.metrics import roc_curve, auc, accuracy_score
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cosine
 import random
 
 test_dataset = HWDataset(DATA_MDB_PATH, TEST_CSV_PATH,transform=TRANSFORM)
@@ -65,10 +65,6 @@ plt.title("K-means clusters - predicted")
 plt.savefig("embedding_clusters_3d_predicted.png")
 
 #### ROC and Genuine-impostor
-
-pairwise_distances = cdist(embeddings, embeddings, metric="cosine")
-pairwise_similarities = 1 - pairwise_distances
-
 genuine_scores = []
 impostor_scores = []
 genuine_pairs = []
@@ -76,7 +72,7 @@ impostor_pairs = []
 
 for i in range(len(true_labels)):
     for j in range(i + 1, len(true_labels)):
-        score = pairwise_similarities[i, j]
+        score = 1 - cosine(embeddings[i], embeddings[j])
         if true_labels[i] == true_labels[j]:
             genuine_scores.append(score)
             genuine_pairs.append((i, j, score))

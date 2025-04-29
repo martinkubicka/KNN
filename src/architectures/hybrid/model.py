@@ -302,6 +302,7 @@ class MaskedAutoencoderViT(nn.Module):
         # embed patches
         x = self.layer_norm(x)
         x = self.patch_embed(x)
+        x = F.interpolate(x, size=(x.shape[2], 192), mode='bilinear', align_corners=False)
         b, c, w, h = x.shape
         x = x.view(b, c, -1).permute(0, 2, 1)
         x = x + self.pos_embed
@@ -310,7 +311,6 @@ class MaskedAutoencoderViT(nn.Module):
             x = blk(x)
 
         x = self.norm(x)
-
         return x.mean(dim=1)
 
 

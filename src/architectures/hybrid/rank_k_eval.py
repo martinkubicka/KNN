@@ -111,7 +111,7 @@ with torch.no_grad():
         for lab in labels:
             true_labels.append(lab.item())
 
-gallery_sizes_to_test = [10, 25, 50, 100, NB_CLASS_TEST]
+gallery_sizes_to_test = [10, 25, 50, 100, 250, NB_CLASS_TEST]
 rank_results = evaluate_closed_set_rank_k(
     embeddings,
     true_labels,

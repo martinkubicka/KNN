@@ -4,7 +4,7 @@ import torch.optim as optim
 from torch.utils.data import random_split, DataLoader
 from dataset import HWDataset
 from globals import TRANSFORM, BATCH_SIZE, EMBEDDING_DIM, NB_CLASS, IMG_SIZE, DEVICE, LR, EPOCHS, DATA_MDB_PATH, TRAIN_CSV_PATH
-from loss import LMCL_loss
+from loss import LMCL_loss, AdaFaceLoss, ArcFace
 from model import create_model
 import matplotlib.pyplot as plt
 
@@ -26,7 +26,27 @@ model = model.to(device)
 lmcl_loss = lmcl_loss.to(device)
 criterion_ce = criterion_ce.to(device)
 
+criterion_ada = AdaFaceLoss(
+            class_num=NB_CLASS,
+            embedding_size=EMBEDDING_DIM,
+            device=DEVICE
+        )
+
+criterion_arc = ArcFace(
+            class_num=NB_CLASS,
+            embedding_size=EMBEDDING_DIM,
+            device=DEVICE
+        )
+
 optimizer = optim.Adam(list(model.parameters()) + list(lmcl_loss.parameters()), lr=LR)
+# optimizer = optim.SGD(
+#     list(model.parameters()) + list(lmcl_loss.parameters()),
+#     lr=LR,
+#     momentum=0.9,
+#     weight_decay=0.0001
+# )
+
+# scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1000)
 
 train_losses = []
 val_losses = []
@@ -45,12 +65,22 @@ for epoch in range(EPOCHS):
         optimizer.zero_grad()
         embeddings = model(images)
         
+        # cosface
         logits, margin_logits = lmcl_loss(embeddings, labels)
         loss = criterion_ce(margin_logits, labels)
+        
+        # adaface
+        # loss = criterion_ada(embeddings, labels)
+        
+        # arcface
+        #loss = criterion_arc(embeddings, labels)
+        
         loss.backward()
         optimizer.step()
         
         train_loss += loss.item() * images.size(0)
+    
+    scheduler.step()
     
     epoch_loss = train_loss / len(train_loader.dataset)
     
@@ -66,8 +96,19 @@ for epoch in range(EPOCHS):
             labels = labels.to(device)
             embeddings = model(images)
             logits, margin_logits = lmcl_loss(embeddings, labels)
+            
+            # cosface
             loss = criterion_ce(margin_logits, labels)
             preds = torch.argmax(logits, dim=1)
+            
+            # adaface
+            # loss = criterion_ada(embeddings, labels)
+            # preds = criterion_ada.get_predictions(embeddings)
+            
+            # arcface
+            # loss = criterion_arc(embeddings, labels)
+            # preds = criterion_arc.get_predictions(embeddings)
+            
             total_val += labels.size(0)
             
             correct_val += (preds == labels).sum().item()
@@ -81,7 +122,7 @@ for epoch in range(EPOCHS):
             'lmcl_loss_state_dict': lmcl_loss.state_dict(),
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-        }, 'model-baseline.pth')
+        }, 'model.pth')
         
     val_acc = new_val_acc
     
