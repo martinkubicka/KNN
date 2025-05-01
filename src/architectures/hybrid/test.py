@@ -10,7 +10,9 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.metrics import roc_curve, auc, accuracy_score
 from scipy.spatial.distance import cosine
-import random
+
+NUM_PAIRS = 3000
+np.random.seed(42)
 
 test_dataset = HWDataset(DATA_MDB_PATH, TEST_CSV_PATH,transform=TRANSFORM)
 
@@ -35,34 +37,12 @@ true_labels = []
 with torch.no_grad():
     for images, labels in test_loader:
         images = images.to(DEVICE)
-        batch_embeddings = model(images).cpu().numpy().astype(np.float16) 
+        batch_embeddings = model(images).cpu().numpy().astype(np.float32) 
         embeddings.append(batch_embeddings)
         true_labels.append(labels.numpy())
 
 embeddings = np.vstack(embeddings)
 true_labels = np.concatenate(true_labels)
-
-### K-means and PCA
-
-kmeans = KMeans(n_clusters=NB_CLASS_TEST, random_state=42, n_init=10)
-predicted_clusters = kmeans.fit_predict(embeddings)
-
-pca = PCA(n_components=3)
-embeddings_3d = pca.fit_transform(embeddings)
-
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection='3d')
-scatter = ax.scatter(embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2], c=true_labels, cmap='nipy_spectral', alpha=0.6)
-plt.colorbar(scatter, ax=ax, label='Ground truth')
-plt.title("K-means clusters - ground truth")
-plt.savefig("embedding_clusters_3d_ground_truth.png")
-
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection='3d')
-scatter = ax.scatter(embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2], c=predicted_clusters, cmap='nipy_spectral', alpha=0.6)
-plt.colorbar(scatter, ax=ax, label='Clusers')
-plt.title("K-means clusters - predicted")
-plt.savefig("embedding_clusters_3d_predicted.png")
 
 #### ROC and Genuine-impostor
 genuine_scores = []
@@ -70,16 +50,36 @@ impostor_scores = []
 genuine_pairs = []
 impostor_pairs = []
 
-for i in range(len(true_labels)):
-    for j in range(i + 1, len(true_labels)):
-        score = 1 - cosine(embeddings[i], embeddings[j])
-        if true_labels[i] == true_labels[j]:
-            genuine_scores.append(score)
-            genuine_pairs.append((i, j, score))
-        else:
-            impostor_scores.append(score)
-            impostor_pairs.append((i, j, score))
+used_pairs = set()
 
+while len(genuine_pairs) < NUM_PAIRS:
+    idx1, idx2 = np.random.choice(len(true_labels), 2, replace=False)
+    cond = true_labels[idx1] == true_labels[idx2] if True else true_labels[idx1] != true_labels[idx2]
+    if not cond:
+        continue
+    pair_key = tuple(sorted((idx1, idx2)))
+    if pair_key not in used_pairs:
+        score = 1 - cosine(embeddings[idx1], embeddings[idx2])
+        pair = (embeddings[idx1], embeddings[idx2], score)
+        genuine_pairs.append(pair)
+        genuine_scores.append(score)
+        used_pairs.add(pair_key)
+        
+used_pairs = set()
+
+while len(impostor_pairs) < NUM_PAIRS:
+    idx1, idx2 = np.random.choice(len(true_labels), 2, replace=False)
+    cond = true_labels[idx1] == true_labels[idx2] if False else true_labels[idx1] != true_labels[idx2]
+    if not cond:
+        continue
+    pair_key = tuple(sorted((idx1, idx2)))
+    if pair_key not in used_pairs:
+        score = 1 - cosine(embeddings[idx1], embeddings[idx2])
+        pair = (embeddings[idx1], embeddings[idx2], score)
+        impostor_pairs.append(pair)
+        impostor_scores.append(score)
+        used_pairs.add(pair_key)
+        
 genuine_scores = np.array(genuine_scores)
 impostor_scores = np.array(impostor_scores)
 

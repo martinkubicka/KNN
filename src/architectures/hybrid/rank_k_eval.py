@@ -15,6 +15,9 @@ from sklearn.metrics import roc_curve, auc, accuracy_score
 from scipy.spatial.distance import cdist
 import random
 
+random.seed(42)
+np.random.seed(42)
+
 def cosine_similarity(vec1, vec2):
     norm1 = np.linalg.norm(vec1)
     norm2 = np.linalg.norm(vec2)
