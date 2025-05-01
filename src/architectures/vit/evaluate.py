@@ -10,12 +10,14 @@ from sklearn.metrics import roc_curve, auc
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from collections import defaultdict
 import random
+from collections import defaultdict
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 
 NUM_PAIRS = 3000
-CMC_GALLERY_SIZES = [10, 50, 100, 500]
+CMC_GALLERY_SIZES = [10, 25, 50, 100, 250, 529]
 CMC_MAX_RANK = 5
 RNG_SEED = 42
 
@@ -29,42 +31,44 @@ def get_data_loader(config):
     ])
 
     dataset = HandWrittenDataset(config["data_dir"], config["indicies"]["test"], transform=transform)
-    dataloader = torch.utils.data.DataLoader(dataset, shuffle=False, batch_size=config["batch_size"]) 
+    dataloader = torch.utils.data.DataLoader(dataset, shuffle=False, batch_size=config["batch_size"])
 
     return dataloader
 
+
 def get_embeddings(model, dataloader, opt):
+    model.eval()
     embeddings = []
     labels = []
 
     with torch.no_grad():
         for data, label in tqdm(dataloader):
             data = data.to(opt.device)
-            label = label.to(opt.device)
+            emb = model.get_embedding(data)
+            emb = torch.nn.functional.normalize(emb, p=2, dim=1)  # Normalize
+            embeddings.append(emb.cpu())
+            labels.append(label.cpu())
 
-            embedding = model.get_embedding(data)
-            embeddings.append(embedding)
-            labels.append(label)
-
-    embeddings = torch.cat(embeddings).cpu()
-    labels = torch.cat(labels).cpu()
-
-    return embeddings, labels
+    return torch.cat(embeddings), torch.cat(labels)
 
 
-def _pairs_from_embeddings(embeddings, labels, positive=True):
-    """Utility for creating pos/neg pairs without duplicates."""
-    pairs = []
-    tgt_len = NUM_PAIRS
-    while len(pairs) < tgt_len:
+def _pairs_from_embeddings(embeddings, labels, positive=True, seed=RNG_SEED):
+    """Creates NUM_PAIRS unique positive or negative pairs."""
+    np.random.seed(seed)
+    embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+    labels = np.array(labels)
+
+    pairs = set()
+    while len(pairs) < NUM_PAIRS:
         idx1, idx2 = np.random.choice(len(labels), 2, replace=False)
-        cond = labels[idx1] == labels[idx2] if positive else labels[idx1] != labels[idx2]
-        if not cond:
+        if positive and labels[idx1] != labels[idx2]:
             continue
+        if not positive and labels[idx1] == labels[idx2]:
+            continue
+
         pair = (tuple(embeddings[idx1].tolist()), tuple(embeddings[idx2].tolist()))
-        if pair not in pairs:  # eliminate accidental duplicates
-            pairs.append(pair)
-    return pairs
+        pairs.add(pair)
+    return list(pairs)
 
 
 def create_roc_curve(pos_pairs, neg_pairs):
@@ -72,8 +76,8 @@ def create_roc_curve(pos_pairs, neg_pairs):
     y_score = []
 
     for pair in pos_pairs + neg_pairs:
-        tensor1 = torch.tensor(pair[0])  
-        tensor2 = torch.tensor(pair[1])  
+        tensor1 = torch.tensor(pair[0])
+        tensor2 = torch.tensor(pair[1])
         similarity = torch.nn.functional.cosine_similarity(tensor1.unsqueeze(0), tensor2.unsqueeze(0))
         y_score.append(similarity.item())
 
@@ -92,19 +96,20 @@ def create_roc_curve(pos_pairs, neg_pairs):
     plt.savefig("roc_curve.png")
     plt.close()
 
+
 def create_genuine_impostor_score(pos_pairs, neg_pairs):
     genuine_scores = []
     imposter_scores = []
 
     for pair in pos_pairs:
-        tensor1 = torch.tensor(pair[0])  
-        tensor2 = torch.tensor(pair[1])  
+        tensor1 = torch.tensor(pair[0])
+        tensor2 = torch.tensor(pair[1])
         similarity = torch.nn.functional.cosine_similarity(tensor1.unsqueeze(0), tensor2.unsqueeze(0))
         genuine_scores.append(similarity.item())
 
     for pair in neg_pairs:
-        tensor1 = torch.tensor(pair[0])  
-        tensor2 = torch.tensor(pair[1])  
+        tensor1 = torch.tensor(pair[0])
+        tensor2 = torch.tensor(pair[1])
         similarity = torch.nn.functional.cosine_similarity(tensor1.unsqueeze(0), tensor2.unsqueeze(0))
         imposter_scores.append(similarity.item())
 
@@ -121,12 +126,14 @@ def create_genuine_impostor_score(pos_pairs, neg_pairs):
     plt.savefig("geniune_impostor_score.png")
     plt.close()
 
+
 def evaluate_closed_set_rank_k(embeddings,
                                labels,
                                gallery_sizes=CMC_GALLERY_SIZES,
                                max_rank=CMC_MAX_RANK):
     labels = np.array(labels)
     embeds = np.array(embeddings)  # shape [n, d]
+    random.seed(RNG_SEED)
 
     identity_to_indices = defaultdict(list)
     for idx, lab in enumerate(labels):
@@ -171,24 +178,70 @@ def evaluate_closed_set_rank_k(embeddings,
 
 def plot_cmc(results, out_path="cmc_curve.png"):
     """
-    Draws a CMC curve family: one line per gallery size.
+    Plots accuracy vs gallery size for each rank-k.
+    Each curve corresponds to a fixed rank-k across varying gallery sizes.
     """
     plt.figure()
-    for N, accs in results.items():
-        plt.plot(range(1, len(accs) + 1),
-                 accs, marker="o", label=f"|G|={N}")
 
-    plt.xticks(range(1, len(next(iter(results.values()))) + 1))
-    plt.xlabel("Rank‑k")
+    # Get all unique rank values (assume same length for all gallery sizes)
+    rank_k = range(1, len(next(iter(results.values()))) + 1)
+    gallery_sizes = sorted(results.keys())
+
+    # Plot one curve per rank-k
+    for rank in rank_k:
+        accs_at_rank = [results[G][rank - 1] for G in gallery_sizes]
+        plt.plot(gallery_sizes, accs_at_rank, marker="o", label=f"Rank-{rank}")
+
+    plt.xlabel("Gallery size")
     plt.ylabel("Identification accuracy")
-    plt.title("Closed‑set CMC")
-    plt.ylim(0, 1.02)
-    plt.grid(alpha=.3)
+    plt.title("CMC Curve (Accuracy vs. Gallery Size)")
+    plt.ylim(0.5, 1.02)
+    plt.grid(alpha=0.3)
     plt.legend()
     plt.tight_layout()
     plt.savefig(out_path)
     plt.close()
     print(f"[✓] CMC plot saved to {out_path}")
+
+
+def plot_embedding_clusters_3d(embeddings, labels):
+    # No sample limit — use all embeddings
+    embeddings_np = embeddings.cpu().numpy()
+    labels_np = labels.cpu().numpy()
+
+    # Limit PCA to 50 components (or fewer if input dimension < 50)
+    pca = PCA(n_components=min(50, embeddings_np.shape[1]))
+    embeddings_pca = pca.fit_transform(embeddings_np)
+
+    # Take first 3 components for 3D visualization
+    embeddings_3d = embeddings_pca[:, :3]
+
+    # Ground truth visualization
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    scatter = ax.scatter(
+        embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2],
+        c=labels_np, cmap='nipy_spectral', alpha=0.6
+    )
+    plt.colorbar(scatter, ax=ax, label='Ground truth')
+    plt.title("3D PCA (Full Data) - Ground Truth Labels")
+    plt.savefig("embedding_clusters_3d_ground_truth.png")
+    plt.close()
+
+    # KMeans clustering in 50-D PCA space
+    kmeans = KMeans(n_clusters=10, random_state=42)
+    predicted_clusters = kmeans.fit_predict(embeddings_pca)
+
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    scatter = ax.scatter(
+        embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2],
+        c=predicted_clusters, cmap='nipy_spectral', alpha=0.6
+    )
+    plt.colorbar(scatter, ax=ax, label='Predicted Clusters (k=10)')
+    plt.title("3D PCA (Full Data) - KMeans Clusters")
+    plt.savefig("embedding_clusters_3d_predicted.png")
+    plt.close()
 
 
 def eval(config, opt):
@@ -208,6 +261,7 @@ def eval(config, opt):
 
     create_roc_curve(pos_pairs, neg_pairs)
     create_genuine_impostor_score(pos_pairs, neg_pairs)
+    plot_embedding_clusters_3d(embeddings, labels)
 
     rank_results = evaluate_closed_set_rank_k(
         embeddings,
@@ -232,16 +286,15 @@ def set_deterministic(config):
     numpy.random.seed(config["seed"])
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a model on the Handwritten Dataset")
-    parser.add_argument("-c", "--config",default="config.json" ,type=str, help="Path to the config file")
-    parser.add_argument("-d", "--device", default="cuda" if torch.cuda.is_available() else "cpu", type=str, help="Device to use")
+    parser.add_argument("-c", "--config", default="config.json", type=str, help="Path to the config file")
+    parser.add_argument("-d", "--device", default="cuda" if torch.cuda.is_available() else "cpu", type=str,
+                        help="Device to use")
     parser.add_argument("-w", "--weights", default=None, type=str, help="Path to the weights file")
 
     args = parser.parse_args()
     config = args.config
-
 
     with open(config) as f:
         config = json.load(f)
